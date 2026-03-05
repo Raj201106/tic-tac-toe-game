@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RS - Ultra Tic Tac Toe</title>
+    <link rel="icon" href="rs.png" type="image/png">
+    
+    <style>
+        :root {
+            --bg: #03050a;
+            --surface: #0a0f1d;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #5c85ff;
+            --secondary: #ff5c85;
+            --border: rgba(255, 255, 255, 0.08);
+            --shadow: 0 10px 40px rgba(0,0,0,0.5);
+            --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        [data-theme="light"] {
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --primary: #2563eb;
+            --secondary: #dc2626;
+            --border: rgba(0, 0, 0, 0.1);
+            --shadow: 0 10px 40px rgba(0,0,0,0.06);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+        }
+
+        /* --- HEADER & TOGGLE --- */
+        header {
+            width: 100%;
+            padding: 20px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .app-logo { display: flex; align-items: center; gap: 12px; }
+        .rs-symbol {
+            background: linear-gradient(135deg, var(--primary), #3b5bdb);
+            color: white; font-weight: 900; padding: 8px 14px;
+            border-radius: 12px; font-size: 1.4rem; box-shadow: 0 5px 15px var(--primary);
+        }
+
+        .theme-switch-wrapper { display: flex; align-items: center; }
+        .theme-switch { display: inline-block; height: 34px; position: relative; width: 60px; }
+        .theme-switch input { display: none; }
+        .slider {
+            background-color: #1e293b; bottom: 0; cursor: pointer; left: 0; position: absolute; 
+            right: 0; top: 0; transition: .4s; border-radius: 34px; border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 7px;
+        }
+        .slider:before {
+            background-color: white; bottom: 3px; content: ""; height: 26px; left: 4px;
+            position: absolute; transition: .4s; width: 26px; border-radius: 50%; z-index: 2;
+        }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(26px); }
+        .slider .icon { font-size: 14px; z-index: 1; pointer-events: none; }
+
+        /* --- MAIN LAYOUT --- */
+        main {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            padding: 20px; gap: 30px; width: 100%; max-width: 1200px; margin: 0 auto;
+        }
+
+        @media (min-width: 900px) {
+            main { flex-direction: row; align-items: stretch; justify-content: center; gap: 50px; padding: 40px; }
+            .game-section, .side-section { flex: 1; }
+        }
+
+        .game-section, .side-section { width: 100%; max-width: 500px; }
+
+        .container-card {
+            background: var(--surface); padding: 30px; border-radius: 32px;
+            border: 1px solid var(--border); box-shadow: var(--shadow);
+            height: 100%; display: flex; flex-direction: column; position: relative;
+        }
+
+        /* --- CONTROLS & BOARD --- */
+        .label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 8px; font-weight: 800; letter-spacing: 0.5px; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        
+        button {
+            flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--border);
+            background: rgba(128,128,128,0.05); color: var(--text-muted);
+            cursor: pointer; font-weight: 700; transition: var(--transition);
+        }
+        button.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .status-area { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 15px 0; }
+        .edit-btn { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 5px; display: none; }
+
+        .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 25px 0; }
+        .cell {
+            aspect-ratio: 1/1; background: rgba(128,128,128,0.03);
+            border: 1px solid var(--border); border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.8rem; font-weight: 800; cursor: pointer; transition: var(--transition);
+        }
+        .cell.x { color: var(--primary); }
+        .cell.o { color: var(--secondary); }
+
+        /* --- HISTORY --- */
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .clear-icon-btn { background: none; border: none; color: var(--secondary); font-size: 1.2rem; cursor: pointer; display: none; }
+        .winner-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); animation: fadeIn 0.5s ease; }
+
+        /* --- MODAL --- */
+        #result-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
+            display: none; align-items: center; justify-content: center; z-index: 2000;
+        }
+        .result-card { padding: 50px; border-radius: 40px; text-align: center; min-width: 320px; }
+        .res-win { background: #22c55e; color: white; }
+        .res-loss { background: #ef4444; color: white; }
+        .res-draw { background: #64748b; color: white; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .pop { animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes pop { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <header>
+        <div class="app-logo">
+            <div class="rs-symbol">RS</div>
+            <h2 style="font-weight: 800;">TicTac<span>Toe</span></h2>
+        </div>
+        <div class="theme-switch-wrapper">
+            <label class="theme-switch" for="checkbox">
+                <input type="checkbox" id="checkbox" onclick="toggleTheme()" />
+                <div class="slider">
+                    <span class="icon">🌙</span>
+                    <span class="icon">☀️</span>
+                </div>
+            </label>
+        </div>
+    </header>
+
+    <main>
+        <section class="game-section">
+            <div class="container-card" style="text-align: center;">
+                <span class="label">Gaming Mode</span>
+                <div class="btn-group">
+                    <button id="pve-btn" class="active" onclick="setMode('pve')">Vs AI</button>
+                    <button id="pvp-btn" onclick="setMode('pvp')">2 Players</button>
+                </div>
+
+                <div id="diff-container">
+                    <span class="label">Difficulty</span>
+                    <div class="btn-group">
+                        <button id="btn-easy" onclick="setDifficulty('easy')">Easy</button>
+                        <button id="btn-medium" class="active" onclick="setDifficulty('medium')">Med</button>
+                        <button id="btn-hard" onclick="setDifficulty('hard')">Hard</button>
+                    </div>
+                </div>
+
+                <div class="status-area">
+                    <div id="status" style="font-weight: 800; color: var(--primary); font-size: 1.2rem;">Your Turn (X)</div>
+                    <button id="edit-btn" class="edit-btn" onclick="renamePlayers()" title="Rename Players">✏️</button>
+                </div>
+
+                <div class="board" id="board">
+                    <div class="cell" data-index="0"></div><div class="cell" data-index="1"></div><div class="cell" data-index="2"></div>
+                    <div class="cell" data-index="3"></div><div class="cell" data-index="4"></div><div class="cell" data-index="5"></div>
+                    <div class="cell" data-index="6"></div><div class="cell" data-index="7"></div><div class="cell" data-index="8"></div>
+                </div>
+                <button onclick="resetGame()" style="background: var(--primary); color: white; width: 100%; border: none; font-size: 1.1rem; padding: 18px; border-radius: 18px; font-weight: 700;">Restart Match</button>
+            </div>
+        </section>
+
+        <section class="side-section">
+            <div class="container-card">
+                <div class="history-header">
+                    <h2 style="color: var(--primary); display: flex; align-items: center; gap: 10px; font-size: 1.5rem;">
+                        <span>🏆</span> Recent Matches
+                    </h2>
+                    <button id="clear-data-btn" class="clear-icon-btn" onclick="clearAllData()">🗑️</button>
+                </div>
+                <div id="history"></div>
+            </div>
+        </section>
+    </main>
+
+    <div id="result-overlay">
+        <div class="result-card" id="result-card">
+            <h1 id="res-emoji" style="font-size: 5rem; margin-bottom: 10px;">🎉</h1>
+            <p id="res-message" style="font-size: 1.8rem; margin-bottom: 30px; font-weight: 800;"></p>
+            <button onclick="closePopup()" style="background: white; color: black; width: 100%; border: none; padding: 18px; font-weight: 900; border-radius: 15px; cursor: pointer;">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        let board = ["", "", "", "", "", "", "", "", ""];
+        let currentPlayer = "X";
+        let gameActive = true;
+        let mode = 'pve'; 
+        let difficulty = 'medium';
+        let names = { X: "Player X", O: "Player O" };
+
+        const winConditions = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+        // --- THEME LOGIC ---
+        const savedTheme = localStorage.getItem('rs-ttt-theme') || 'dark';
+        document.body.setAttribute('data-theme', savedTheme);
+        document.getElementById('checkbox').checked = savedTheme === 'light';
+
+        function toggleTheme() {
+            const isLight = document.getElementById('checkbox').checked;
+            const target = isLight ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', target);
+            localStorage.setItem('rs-ttt-theme', target);
+        }
+
+        // --- GAME LOGIC ---
+        function setMode(m) {
+            mode = m;
+            document.getElementById('pve-btn').className = m === 'pve' ? 'active' : '';
+            document.getElementById('pvp-btn').className = m === 'pvp' ? 'active' : '';
+            document.getElementById('diff-container').style.display = m === 'pve' ? 'block' : 'none';
+            document.getElementById('edit-btn').style.display = m === 'pvp' ? 'block' : 'none';
+            resetGame();
+        }
+
+        function renamePlayers() {
+            const x = prompt("Name for Player X:", names.X);
+            const o = prompt("Name for Player O:", names.O);
+            if(x) names.X = x.substring(0, 10);
+            if(o) names.O = o.substring(0, 10);
+            updateStatus();
+        }
+
+        function handleCellClick(e) {
+            const index = e.target.getAttribute('data-index');
+            if (board[index] !== "" || !gameActive) return;
+            makeMove(index, currentPlayer);
+            if (gameActive && mode === 'pve' && currentPlayer === "O") setTimeout(aiTurn, 600);
+        }
+
+        function makeMove(index, player) {
+            board[index] = player;
+            const cell = document.querySelectorAll('.cell')[index];
+            cell.innerText = player;
+            cell.classList.add('taken', player.toLowerCase(), 'pop');
+            if (checkWin(board, player)) { showPopup(player); gameActive = false; return; }
+            if (!board.includes("")) { showPopup("Draw"); gameActive = false; return; }
+            currentPlayer = currentPlayer === "X" ? "O" : "X";
+            updateStatus();
+        }
+
+        function updateStatus() {
+            const statusDisp = document.getElementById('status');
+            const currentName = names[currentPlayer];
+            statusDisp.innerText = mode === 'pvp' ? `${currentName}'s Turn` : (currentPlayer === 'X' ? 'Your Turn (X)' : 'AI Thinking...');
+            statusDisp.style.color = currentPlayer === "X" ? "var(--primary)" : "var(--secondary)";
+        }
+
+        function aiTurn() {
+            let move = randomMove();
+            if (move !== null) makeMove(move, "O");
+        }
+
+        function randomMove() {
+            let avail = board.map((v, i) => v === "" ? i : null).filter(v => v !== null);
+            return avail.length > 0 ? avail[Math.floor(Math.random() * avail.length)] : null;
+        }
+
+        function checkWin(b, p) { return winConditions.some(c => c.every(i => b[i] === p)); }
+
+        function showPopup(winner) {
+            const overlay = document.getElementById('result-overlay');
+            const card = document.getElementById('result-card');
+            const msg = document.getElementById('res-message');
+            card.className = "result-card " + (winner === "X" ? "res-win" : (winner === "O" ? "res-loss" : "res-draw"));
+            msg.innerText = winner === "Draw" ? "STALEMATE!" : `${names[winner].toUpperCase()} WINS!`;
+            overlay.style.display = "flex";
+            saveResult(winner);
+        }
+
+        function saveResult(winner) {
+            const history = JSON.parse(localStorage.getItem('rs-scores') || "[]");
+            const entry = {
+                name: winner === "Draw" ? "Draw" : names[winner],
+                mode: mode === 'pvp' ? 'PvP' : `AI (${difficulty})`,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            history.unshift(entry);
+            localStorage.setItem('rs-scores', JSON.stringify(history.slice(0, 10)));
+            updateHistoryUI();
+        }
+
+        function updateHistoryUI() {
+            const history = JSON.parse(localStorage.getItem('rs-scores') || "[]");
+            document.getElementById('clear-data-btn').style.display = history.length > 0 ? 'block' : 'none';
+            document.getElementById('history').innerHTML = history.map(item => `
+                <div class="winner-item">
+                    <span><b>${item.name}</b></span>
+                    <span style="color:var(--primary); font-size:0.8rem; font-weight:800;">${item.mode}</span>
+                    <span style="color:var(--text-muted); font-size:0.75rem;">${item.time}</span>
+                </div>
+            `).join('') || '<p style="color: var(--text-muted); font-style: italic; margin-top:10px;">No matches yet.</p>';
+        }
+
+        function clearAllData() { if(confirm("Wipe match history?")) { localStorage.removeItem('rs-scores'); updateHistoryUI(); } }
+        function setDifficulty(d) { difficulty = d; ['easy', 'medium', 'hard'].forEach(l => document.getElementById(`btn-${l}`).className = l === d ? 'active' : ''); resetGame(); }
+        function resetGame() { board.fill(""); currentPlayer = "X"; gameActive = true; updateStatus(); document.querySelectorAll('.cell').forEach(c => { c.innerText = ""; c.className = "cell"; }); }
+        function closePopup() { document.getElementById('result-overlay').style.display = "none"; resetGame(); }
+
+        document.querySelectorAll('.cell').forEach(c => c.addEventListener('click', handleCellClick));
+        updateHistoryUI();
+    </script>
+</body>
+</html>
